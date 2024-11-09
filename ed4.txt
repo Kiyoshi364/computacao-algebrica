@@ -1,0 +1,114 @@
+"Questão 1";
+
+ring r = 0,(x,y,v,t(0..3)),lp;
+
+// (x/2,y/2) + k*(y,-x) = p = (1/2, v)
+// k*(y,-x) = (1/2-x/2, v-y/2)
+
+// { k*y = 1/2-x/2
+// { k*(-x) = v-y/2
+
+// { k = (1/2-x/2)/y
+// { k = (v-y/2)/(-x)
+
+// (1/2-x/2)/y = (v-y/2)/(-x)
+// (1/2-x/2)*(-x) = (v-y/2)*y
+// (1/2-x/2)*(-x) - (v-y/2)*y = 0
+poly h1 = (1/2-x/2)*(-x) - (v-y/2)*y;
+"h1";
+h1;
+
+// ((x+1)/2, y/2) + k*(-y, x-1) = p = (1/2,v)
+// k*(-y, x-1) = ((1/2)-(x+1)/2,v-(y/2))
+
+// { k*(-y) = (1/2)-(x+1)/2
+// { k*(x-1) = v-(y/2)
+
+// { k = ((1/2)-(x+1)/2)/(-y)
+// { k = (v-(y/2))/(x-1)
+
+// ((1/2)-(x+1)/2)/(-y) = (v-(y/2))/(x+1)
+// ((1/2)-(x+1)/2)*(x-1) = (v-(y/2))*(-y)
+// ((1/2)-(x+1)/2)*(x-1) - (v-(y/2))*(-y) = 0
+poly h2 = ((1/2)-(x+1)/2)*(x-1) - (v-(y/2))*(-y);
+"Obs: a 'conclusão' é h2";
+"h2";
+h2;
+
+"método direto";
+"reduce(h2, h1)";
+reduce(h2, h1);
+
+"método refutacional";
+"std(ideal(h1, t(0)*h2-1))";
+std(ideal(h1, t(0)*h2-1));
+
+"Questão 2";
+
+poly h1_ = (x*(x-v)+y^2)^2*((x-1)^2+y^2) - ((x-1)*(x-v)+y^2)^2*(x^2+y^2);
+"h1_";
+h1_;
+
+poly h2_ = (v^2)*((x-1)^2+y^2) - (x^2+y^2)*((1-v)^2);
+"Obs: a 'conclusão' é h2_";
+"h2_: BD^2*AC^2 = AB^2*DC^2";
+h2_;
+
+poly h3_ = t(1)*y - 1;
+"h3_: y != 0";
+h3_;
+
+"método direto";
+"reduce(h2_, std(ideal(h1_,h3_)))";
+reduce(h2_, std(ideal(h1_,h3_)));
+
+"método refutacional";
+"std(ideal(h1_, t(0)*h2_-1, h3_))";
+std(ideal(h1_, t(0)*h2_-1, h3_));
+
+"Questão 3";
+
+poly h1__ = x^2 + y^2 - 1;
+"h1__: (x,y) na circunferencia";
+h1__;
+
+poly h2__ = v^2 + y^2 - 1;
+"h2__: (v,y) na circunferencia";
+h2__;
+
+poly h3__ = v^2 - x^2;
+"Obs: a 'conclusão' é h3__";
+h3__;
+
+
+"método direto";
+"reduce(h3__, std(ideal(h1__,h2__)))";
+reduce(h3__, std(ideal(h1__,h2__)));
+
+"método refutacional";
+"std(ideal(h1__, h2__, t(0)*h3__-1))";
+std(ideal(h1__, h2__, t(0)*h3__-1));
+
+"Questão 4";
+
+poly h1___ = x^2 + y^2 - 1;
+"h1___: (x,y) na circunferencia";
+h1___;
+
+poly h2___ = t(2) - (x+v)/2;
+"h2___: tx está na curva";
+h2___;
+
+poly h3___ = t(3) - y/2;
+"h3___: ty está na curva";
+h3___;
+
+ideal i = std(ideal(h1___,h2___,h3___));
+"i = std(ideal(h1___,h2___,h3___))";
+i;
+
+"curva: (v-2*tx)^2 + (2*ty)^2 = 1";
+i[1];
+
+"sanity check: (v-2*tx)^2 + (2*ty)^2 - 1 - i[1]";
+(v-2*t(2))^2 + (2*t(3))^2 - 1 - i[1];
