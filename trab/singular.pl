@@ -8,6 +8,7 @@
   def_ideal//2, print_ideal//1,
   % Equation DSL
   equation//2,
+  boolexpr//1,
   % Domain primitives
   domain_vars/2, domain_roots/2,
   domain_vareqs/2, domain_vareqs/3,
@@ -19,8 +20,16 @@
   op(700, xfx, #=)
 ]).
 :- use_module(library(dcgs)).
-:- use_module(library(lambda)).
-:- use_module(library(lists), [foldl/4]).
+:- use_module(library(lambda), [
+  (^)/3, (^)/4, (^)/5,
+  (\)/4,
+  (+\)/5,
+  op(201, xfx, +\)
+]).
+:- use_module(library(lists), [
+  maplist/2, maplist/3, foldl/4,
+  reverse/2
+]).
 
 %%% Domain in Standard Prolog %%%
 
@@ -34,26 +43,31 @@ foldl_range(Pred, Low, High, A0, A) :-
     A0 = A
   ).
 
-domain_vars(unityroots(_, NVars), Vars) :-
+domain_vars(unityroots(_, Vs), Vars) :-
+  varsspec_vars(Vs, Vars).
+domain_vars(boolean(Bs), Vars) :-
+  varsspec_vars(Bs, Vars).
+
+varsspec_vars(VarsSpec, Vars) :-
+  foldl(vspec_vars, VarsSpec, Vars, []).
+
+vspec_vars(Name-Ns, Vs0, Vs) :-
+  vspec_vars_(Ns, Name, [], Vs0, Vs).
+
+vspec_vars_([], Name, Idxs, [var(Name, RIdxs) | Vs], Vs) :-
+  reverse(Idxs, RIdxs).
+vspec_vars_([N | Ns], Name, Idxs0, Vs0, Vs) :-
   foldl_range(
-    \Idx^[var(x, Idx) | Vs]^Vs^true,
-    0, NVars, Vars, []).
-domain_vars(boolean(BNs), Vars) :-
-  foldl(
-    \ (B-N)^Vs0^Vs^(
-      foldl_range(
-        \Idx^[var(B, Idx) | VVs]^VVs^true,
-        0, N, Vs0, Vs
-      )
+    f(Name, Ns, Idxs0)+\Idx^VVs0^VVs^(
+      Idxs1 = [Idx | Idxs0],
+      vspec_vars_(Ns, Name, Idxs1, VVs0, VVs)
     ),
-    BNs, Vars, []
+    0, N, Vs0, Vs
   ).
 
-domain_roots(unityroots(N, _), Roots) :-
-  foldl_range(
-    \Idx^[var(w, Idx) | Vs]^Vs^true,
-    0, N, Roots, []
-  ).
+domain_roots(unityroots(R, _), Roots) :-
+  vspec_vars(R, Roots, []).
+domain_roots(boolean(_), []).
 
 domain_vareqs(D, Eqs) :- domain_vareqs(D, Eqs, []).
 
@@ -66,21 +80,20 @@ domain_vareqs(D, Eqs0, Eqs) :-
 
 domain_rooteqs(D, Eqs) :- domain_rooteqs(D, Eqs, []).
 
-domain_rooteqs(unityroots(N, NVars), Eqs0, Eqs) :-
-  domain_roots(unityroots(N, NVars), Roots),
-  unityroots_rooteqs(Roots, Eqs0, X, X, Eqs).
-domain_rooteqs(boolean(_), Eqs, Eqs).
+domain_rooteqs(D, Eqs0, Eqs) :-
+  domain_roots(D, Roots),
+  roots_rooteqs(Roots, Eqs0, X, X, Eqs).
 
-unityroots_rooteqs([], DomEqs, DomEqs, DiffEqs, DiffEqs).
-unityroots_rooteqs([Root | Roots], DomEqs0, DomEqs, DiffEqs0, DiffEqs) :-
+roots_rooteqs([], DomEqs, DomEqs, DiffEqs, DiffEqs).
+roots_rooteqs([Root | Roots], DomEqs0, DomEqs, DiffEqs0, DiffEqs) :-
   DomEqs0 = [var_indomain(Root) | DomEqs1],
-  unityroots_diffroots(Roots, Root, DiffEqs0, DiffEqs1),
-  unityroots_rooteqs(Roots, DomEqs1, DomEqs, DiffEqs1, DiffEqs).
+  roots_root_diffeqs(Roots, Root, DiffEqs0, DiffEqs1),
+  roots_rooteqs(Roots, DomEqs1, DomEqs, DiffEqs1, DiffEqs).
 
-unityroots_diffroots([], _, DiffEqs, DiffEqs).
-unityroots_diffroots([RootB | Roots], RootA, DiffEqs0, DiffEqs) :-
+roots_root_diffeqs([], _, DiffEqs, DiffEqs).
+roots_root_diffeqs([RootB | Roots], RootA, DiffEqs0, DiffEqs) :-
   DiffEqs0 = [var_diff(RootA, RootB) | DiffEqs1],
-  unityroots_diffroots(Roots, RootA, DiffEqs1, DiffEqs).
+  roots_root_diffeqs(Roots, RootA, DiffEqs1, DiffEqs).
 
 %%% DCGs Hellpers %%%
 
@@ -103,14 +116,23 @@ boolexpr(xor(A, B)) -->
 
 %%% Equation Helpers %%%
 
-varname(var(Name, Idx)) --> atom(Name), "(", number(Idx), ")".
+varidxs([]) --> [].
+varidxs([A | As]) -->
+  "(", number(A), ")",
+  varidxs(As).
+
+varname(var(Name, Idxs)) --> atom(Name), varidxs(Idxs).
 
 varname_exp(Var, Exp) --> varname(Var), "^", number(Exp).
 
 varname_isname(Var, Is) --> varname(Var), " - ", varname(Is).
 
-domain_varname_in(unityroots(N, _), Var) -->
-  varname_exp(Var, N), " - 1".
+domain_varname_in(unityroots(_-Ns, _), Var) -->
+  { foldl(
+      \X^A0^A^(A #= A0 * X),
+      Ns, 1, Exp
+    ) },
+  varname_exp(Var, Exp), " - 1".
 domain_varname_in(boolean(_), Var) -->
   varname(Var), "*(", varname(Var), " - 1)".
 
@@ -118,7 +140,7 @@ domain_varname_diffname(D, Var, Diff) -->
   "((", domain_varname_in(D, Var), ") - (", domain_varname_in(D, Diff), "))/(",
   varname_isname(Var, Diff), ")".
 
-domain_boolexprs_count(unityroots(_,_), _, _) --> { false }.
+domain_boolexprs_count(unityroots(_, _), _, _) --> { false }.
 domain_boolexprs_count(boolean(_), [BExpr | BExprs], Count) -->
   boolean_bexpr(BExpr),
   boolean_bexprs_sum(BExprs, Count).
@@ -141,21 +163,33 @@ equation(boolexprs_count(BExprs, Count), D) --> domain_boolexprs_count(D, BExprs
 
 endcmd --> ";\n".
 
-def_var_count(Name, N) -->
+def_var_idx([]) --> [].
+def_var_idx([N | Ns]) -->
   { N1 #= N - 1 },
-  atom(Name), "(0..", number(N1), ")".
+  "(0..", number(N1), ")",
+  def_var_idx(Ns).
 
-domain_defvars(unityroots(N, NVars)) -->
-  def_var_count(x, NVars), ",",
-  def_var_count(w, N).
+def_var_counts(Name, Ns) -->
+  atom(Name), def_var_idx(Ns).
+
+domain_defvars(unityroots(W-Nws, Vs)) -->
+  foldl(
+    \ (Name-Ns)^Xs0^Xs^(
+      def_var_counts(Name, Ns, Xs0, Xs1),
+      Xs1 = [',' | Xs]
+    ),
+    Vs
+  ),
+  def_var_counts(W, Nws).
 domain_defvars(boolean([B-N | Bs])) -->
-  def_var_count(B, N),
-  boolean_domain_defvars(Bs).
-
-boolean_domain_defvars([]) --> [].
-boolean_domain_defvars([B-N | Bs]) -->
-  ",", def_var_count(B, N),
-  boolean_domain_defvars(Bs).
+  def_var_counts(B, N),
+  foldl(
+    \ (Name-Ns)^Xs0^Xs^(
+      Xs0 = [',' | Xs1],
+      def_var_counts(Name, Ns, Xs1, Xs)
+    ),
+    Bs
+  ).
 
 poly_name(prefixed(Prefix, PID)) --> atom(Prefix), number(PID).
 
@@ -180,13 +214,13 @@ header(Dom, Ord) -->
 gen_polyname(gen_prefix(Prefix, PID), gen_prefix(Prefix, PID1), prefixed(Prefix, PID)) -->
   { PID1 #= PID + 1 }, poly_name(prefixed(Prefix, PID)).
 
-def_poly_eq_dom_gen(Eq, Dom, PName, Gen0, Gen) -->
+def_poly_eq_dom_gen(Eq, Dom, Gen0, Gen, PName) -->
   "poly ", gen_polyname(Gen0, Gen, PName), " = ", equation(Eq, Dom), endcmd.
 
 def_polys_eqs_dom_gen([], _, Gen, Gen, PNames, PNames) --> [].
 def_polys_eqs_dom_gen([Eq | Eqs], Dom, Gen0, Gen, PNames0, PNames) -->
   { PNames0 = [PName | PNames1] },
-  def_poly_eq_dom_gen(Eq, Dom, PName, Gen0, Gen1),
+  def_poly_eq_dom_gen(Eq, Dom, Gen0, Gen1, PName),
   def_polys_eqs_dom_gen(Eqs, Dom, Gen1, Gen, PNames1, PNames).
 
 def_ideal(IName, PNames) -->
