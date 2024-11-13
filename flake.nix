@@ -40,6 +40,7 @@
             name = "singular";
             buildInputs = with pkgs; [
               singular
+              scryer-prolog
             ];
           };
         };
