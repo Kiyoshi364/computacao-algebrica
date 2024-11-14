@@ -18,7 +18,7 @@ test_unityroots(S) :-
     var_diff(var(x, [0]), var(x, [1])),
     var_is(var(x, [1]), var(w, [3]))
   ],
-  test(compile(Eqs, D), S), !,
+  test(compile(Eqs, D), S),
 true.
 
 test_boolean :- current_output(S), test_boolean(S).
@@ -40,7 +40,7 @@ test_boolean(S) :-
       xor(var(z, [0, 1]), var(y, [1]))
     ], 3)
   ],
-  test(compile(Eqs, D), S), !,
+  test(compile(Eqs, D), S),
 true.
 
 test_checker :-

@@ -103,6 +103,46 @@ roots_root_diffeqs([RootB | Roots], RootA, DiffEqs0, DiffEqs) :-
 atom(A) --> { atom_chars(A, Cs) }, Cs.
 number(N) --> { number_chars(N, Cs) }, Cs.
 
+list([]) --> "[]".
+list([H | T]) -->
+  "[",
+  term(H),
+  foldl(
+    \X^Vs0^Vs^(
+      Vs0 = [',', ' ' | Vs1],
+      term(X, Vs1, Vs)
+    ),
+    T
+  ),
+  "]".
+
+term(T) -->
+  { functor(T, Name, Arity) },
+  ( { Name = '.' }, list(T)
+  ; ( { Name \= '.', atom(Name) }, atom(Name)
+    ; { number(Name) }, number(Name)
+    ),
+    arity_term(Arity, T)
+  ).
+
+arity_term(Arity, Term) -->
+  ( { Arity #= 0 }
+  ; { 0 #< Arity,
+      Arity1 #= Arity + 1,
+      arg(1, Term, Arg1) },
+    "(",
+    term(Arg1),
+    foldl_range(
+      Term+\Idx^Vs0^Vs^(
+        Vs0 = [',', ' ' | Vs1],
+        arg(Idx, Term, Arg),
+        term(Arg, Vs1, Vs)
+      ),
+      2, Arity1
+    ),
+    ")"
+  ).
+
 %%% BoolExpr %%%
 
 boolexpr(false) --> "0".
@@ -235,6 +275,8 @@ equation(boolexprs_count(BExprs, Count), D) --> domain_boolexprs_count(D, BExprs
 
 %%% Singular Helpers %%%
 
+comment(Term) --> "// ", term(Term), "\n".
+
 endcmd --> ";\n".
 
 def_var_idx([]) --> [].
@@ -289,6 +331,7 @@ gen_polyname(gen_prefix(Prefix, PID), gen_prefix(Prefix, PID1), prefixed(Prefix,
   { PID1 #= PID + 1 }, poly_name(prefixed(Prefix, PID)).
 
 def_poly_eq_dom_gen(Eq, Dom, Gen0, Gen, PName) -->
+  comment(Eq),
   "poly ", gen_polyname(Gen0, Gen, PName), " = ", equation(Eq, Dom), endcmd.
 
 def_polys_eqs_dom_gen([], _, Gen, Gen, PNames, PNames) --> [].

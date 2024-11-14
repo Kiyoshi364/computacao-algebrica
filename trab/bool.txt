@@ -1,14 +1,24 @@
 option(redSB);
 ring r = 0,(x(0..0),y(0..1),z(0..1)(0..1)),lp;
+// var_indomain(var(x, [0]))
 poly k0 = x(0)*(x(0) - 1);
+// var_indomain(var(y, [0]))
 poly k1 = y(0)*(y(0) - 1);
+// var_indomain(var(y, [1]))
 poly k2 = y(1)*(y(1) - 1);
+// var_indomain(var(z, [0, 0]))
 poly k3 = z(0)(0)*(z(0)(0) - 1);
+// var_indomain(var(z, [0, 1]))
 poly k4 = z(0)(1)*(z(0)(1) - 1);
+// var_indomain(var(z, [1, 0]))
 poly k5 = z(1)(0)*(z(1)(0) - 1);
+// var_indomain(var(z, [1, 1]))
 poly k6 = z(1)(1)*(z(1)(1) - 1);
+// var_diff(var(x, [0]), var(y, [1]))
 poly h0 = ((x(0)*(x(0) - 1)) - (y(1)*(y(1) - 1)))/(x(0) - y(1));
+// var_is(var(y, [1]), var(z, [1, 1]))
 poly h1 = y(1) - z(1)(1);
+// boolexprs_count([false, true, var(z, [0, 0]), var(z, [0, 1]), var(z, [1, 0]), var(z, [1, 1]), not(var(x, [0])), and(var(y, [0]), var(y, [1])), or(var(x, [0]), var(y, [0])), xor(var(z, [0, 1]), var(y, [1]))], 3)
 poly h2 = (0) + (1) + (z(0)(0)) + (z(0)(1)) + (z(1)(0)) + (z(1)(1)) + (1-(x(0))) + ((y(0))*(y(1))) + ((x(0))+(y(0))-((x(0))*(y(0)))) + ((z(0)(1))+(y(1))-(2*(z(0)(1))*(y(1)))) - 3;
 ideal i = std(ideal(k0,k1,k2,k3,k4,k5,k6,h0,h1,h2));
 i;
