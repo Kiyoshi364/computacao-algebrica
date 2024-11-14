@@ -9,6 +9,9 @@
   % Equation DSL
   equation//2,
   boolexpr//1,
+  % Equation Checking
+  check_domain_eqs/2,
+  domain_eqs_goods_bads/4,
   % Domain primitives
   domain_vars/2, domain_roots/2,
   domain_vareqs/2, domain_vareqs/3,
@@ -22,8 +25,8 @@
 :- use_module(library(dcgs)).
 :- use_module(library(lambda), [
   (^)/3, (^)/4, (^)/5,
-  (\)/4,
-  (+\)/5,
+  (\)/2, (\)/4,
+  (+\)/3, (+\)/5,
   op(201, xfx, +\)
 ]).
 :- use_module(library(lists), [
@@ -151,6 +154,77 @@ boolean_bexprs_sum([], Sum) --> " - ", number(Sum).
 boolean_bexprs_sum([BExpr | BExprs], Sum) -->
   " + ", boolean_bexpr(BExpr),
   boolean_bexprs_sum(BExprs, Sum).
+
+%%% Equation DSL Checker %%%
+
+:- meta_predicate(filter(1, ?, ?, ?)).
+:- meta_predicate(filter_(?, 1, ?, ?)).
+filter(Pred, Ls, Gs, Bs) :- filter_(Ls, Pred, Gs, Bs).
+
+% XXX: [WARNING] CUT HERE !
+filter_([], _, [], []).
+filter_([L | Ls], Pred, Gs, Bs) :-
+  ( call(Pred, L) ->
+    Gs = [L | Gs1], Bs = Bs1
+  ; Gs = Gs1, Bs = [L | Bs1]
+  ),
+  filter_(Ls, Pred, Gs1, Bs1).
+
+check_domain_eqs(D, Eqs) :-
+  domain_eqs_goods_bads(D, Eqs, Eqs, []).
+
+domain_eqs_goods_bads(D, Eqs, Goods, Bads) :-
+  domain_varsspec(D, VarsSpec),
+  check_varsspec(VarsSpec),
+  filter(
+    VarsSpec+\Eq^check_eq(Eq, VarsSpec),
+    Eqs, Goods, Bads
+  ).
+
+domain_varsspec(unityroots(R, Vs), [R | Vs]).
+domain_varsspec(boolean(Bs), Bs).
+
+check_varsspec([]).
+check_varsspec([A-N | VarsSpec]) :-
+  filter(A +\ (A-_)^true, VarsSpec, [], VarsSpec),
+  maplist(\Idx ^ (0 #< Idx), N),
+  check_varsspec(VarsSpec).
+
+check_eq(var_indomain(Var), VarsSpec) :-
+  check_var(Var, VarsSpec).
+check_eq(var_diff(Var, Diff), VarsSpec) :-
+  check_var(Var, VarsSpec),
+  check_var(Diff, VarsSpec).
+check_eq(var_is(Var, Is), VarsSpec) :-
+  check_var(Var, VarsSpec),
+  check_var(Is, VarsSpec).
+check_eq(boolexprs_count(BExprs, Count), VarsSpec) :-
+  number(Count),
+  maplist(
+    VarsSpec+\BExpr^check_boolexpr(BExpr, VarsSpec),
+    BExprs
+  ).
+
+check_boolexpr(false, _).
+check_boolexpr(true, _).
+check_boolexpr(var(Name, Idx), VarsSpec) :-
+  check_var(var(Name, Idx), VarsSpec).
+check_boolexpr(not(A), VarsSpec) :-
+  check_boolexpr(A, VarsSpec).
+check_boolexpr(and(A, B), VarsSpec) :-
+  check_boolexpr(A, VarsSpec),
+  check_boolexpr(B, VarsSpec).
+check_boolexpr(or(A, B), VarsSpec) :-
+  check_boolexpr(A, VarsSpec),
+  check_boolexpr(B, VarsSpec).
+check_boolexpr(xor(A, B), VarsSpec) :-
+  check_boolexpr(A, VarsSpec),
+  check_boolexpr(B, VarsSpec).
+
+check_var(var(Name, Idx), VarsSpec) :-
+  filter(Name+\ (Name-_)^true, VarsSpec, [Name-Ns], _),
+  maplist(#<(-1), Idx),
+  maplist(#<, Idx, Ns).
 
 %%% Equation DSL Interpreter %%%
 
