@@ -15,7 +15,9 @@
   % Domain primitives
   domain_vars/2, domain_roots/2,
   domain_vareqs/2, domain_vareqs/3,
-  domain_rooteqs/2, domain_rooteqs/3
+  domain_rooteqs/2, domain_rooteqs/3,
+  % Iteration helpers
+  foldl_range/5
 ]).
 
 :- use_module(library(clpz), [
@@ -345,9 +347,9 @@ def_ideal(IName, PNames) -->
 
 print_ideal(IName) --> ideal_name(IName), endcmd.
 
-compile(Eqs, Dom) -->
-  compile(Eqs, Dom, lp, gen_prefix(d, 0), gen_prefix(k, 0), gen_prefix(h, 0), name(i)).
-compile(Eqs, Dom, Ord, Root_gen, Dom_gen, Poly_gen, IName) -->
+compile(Dom, Eqs) -->
+  compile(Dom, Eqs, lp, gen_prefix(d, 0), gen_prefix(k, 0), gen_prefix(h, 0), name(i)).
+compile(Dom, Eqs, Ord, Root_gen, Dom_gen, Poly_gen, IName) -->
   header(Dom, Ord),
   { domain_rooteqs(Dom, REqs),
     domain_vareqs(Dom, VEqs) },
